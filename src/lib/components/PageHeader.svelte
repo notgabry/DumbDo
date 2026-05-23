@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as store from '$lib/stores/todoStore.svelte'
   import { theme, toggleTheme } from '$lib/stores/theme'
-  import { Moon, Sun, Plus, LayoutList, LayoutGrid, Pencil, Trash2 } from 'lucide-svelte'
+  import { Moon, Sun, Plus, LogOut } from 'lucide-svelte'
 
   let { siteTitle, singleList, onRenameList, onDeleteList, onToggleView }: {
     siteTitle: string
@@ -10,6 +10,11 @@
     onDeleteList: () => void
     onToggleView: () => void
   } = $props()
+
+  const logout = async () => {
+    await fetch('/api/logout', { method: 'POST' })
+    window.location.href = '/login'
+  }
 </script>
 
 <header class="sticky top-0 z-40 border-b backdrop-blur-md bg-(--black)/85 border-(--border)">
@@ -49,6 +54,11 @@
           {store.s.viewMode === 'list' ? 'BOARD' : 'LIST'}
         </button>
       {/if}
+      <button onclick={logout}
+        class="w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer border-(--border-visible) text-(--text-secondary) bg-transparent"
+        aria-label="Logout">
+        <LogOut size={14} strokeWidth={1.5} />
+      </button>
       <button onclick={toggleTheme}
         class="w-8 h-8 flex items-center justify-center rounded-full border transition-colors cursor-pointer border-(--border-visible) text-(--text-secondary) bg-transparent"
         aria-label="Toggle theme">

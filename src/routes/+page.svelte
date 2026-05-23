@@ -17,19 +17,32 @@
     const v = document.documentElement.getAttribute('data-view-mode')
     if (v === 'list' || v === 'board') store.s.viewMode = v
     ready = true
+
+    fetch('/api/config').then(r => r.json()).then(cfg => {
+      const ms = (cfg.idleTimeoutSeconds || 0) * 1_000
+      if (ms <= 0) return
+      let timer: ReturnType<typeof setTimeout>
+      const reset = () => { clearTimeout(timer); timer = setTimeout(logout, ms) }
+      const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'] as const
+      for (const e of events) window.addEventListener(e, reset)
+      reset()
+      return () => { clearTimeout(timer); for (const e of events) window.removeEventListener(e, reset) }
+    })
   })
+
+  const logout = async () => {
+    await fetch('/api/logout', { method: 'POST' })
+    window.location.href = '/login'
+  }
 
   let newTodoText = $state('')
   let modal: { type: 'confirm' | 'prompt'; title: string; message?: string; confirmText?: string; inputValue?: string } | null = $state(null)
   let modalResolve: ((value: any) => void) | null = $state(null)
   let statusMsg = $state('')
   let statusType = $state<'success' | 'error' | 'info'>('info')
-  let statusTimer: ReturnType<typeof setTimeout> | null = null
 
   const show = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
     statusMsg = msg; statusType = type
-    if (statusTimer) clearTimeout(statusTimer)
-    statusTimer = setTimeout(() => { statusMsg = '' }, 3000)
   }
 
   const addTodo = () => {
@@ -98,7 +111,7 @@
         <FilterBar tags={store.getAllTags()} activeTag={store.s.filterTag}
           onSelect={(tag: string | null) => store.setFilterTag(tag)} />
 
-        <Toast message={statusMsg} type={statusType} />
+        <Toast message={statusMsg} type={statusType} onDismiss={() => statusMsg = ''} />
 
         {#key store.s.viewMode}
           {#if store.s.viewMode === 'list'}

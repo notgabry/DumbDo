@@ -10,7 +10,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   // API endpoints (except auth)
   if (pathname.startsWith('/api/')) {
-    if (pathname === '/api/pin-required' || pathname === '/api/verify-pin') {
+    if (pathname === '/api/pin-required' || pathname === '/api/verify-pin' || pathname === '/api/logout') {
       return await resolve(event)
     }
     const providedPin = cookies.get('DUMBDO_PIN')

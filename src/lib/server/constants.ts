@@ -8,6 +8,7 @@ const ROOT = path.resolve(__dirname, '../../..')
 export const PIN = env.DUMBDO_PIN
 export const SITE_TITLE = env.DUMBDO_SITE_TITLE || 'DumbDo'
 export const SINGLE_LIST = env.SINGLE_LIST === 'true'
+export const IDLE_TIMEOUT_SECONDS = parseInt(env.IDLE_TIMEOUT_SECONDS || '0', 10)
 export const MIN_PIN_LENGTH = 4
 export const MAX_PIN_LENGTH = 10
 
