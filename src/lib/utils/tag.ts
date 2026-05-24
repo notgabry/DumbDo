@@ -1,11 +1,21 @@
 export interface ParsedTodo {
   tag: string | null
+  starTags: string[]
   text: string
 }
 
 export const parseTag = (raw: string): ParsedTodo => {
-  const m = raw.match(/^([A-Za-z]\w*)\s*:\s*(.+)/)
-  return m ? { tag: m[1].toUpperCase(), text: m[2].trim() } : { tag: null, text: raw }
+  const prefix = raw.match(/^([A-Za-z]\w*)\s*:\s*(.+)/)
+  let text = prefix ? prefix[2].trim() : raw
+  const tag = prefix ? prefix[1].toUpperCase() : null
+  const stars: string[] = []
+  while (true) {
+    const m = text.match(/\s+\*(\w+)$/)
+    if (!m) break
+    stars.unshift(m[1].toUpperCase())
+    text = text.slice(0, m.index).trimEnd()
+  }
+  return { tag, starTags: stars, text }
 }
 
 const TAG_PALETTE = [

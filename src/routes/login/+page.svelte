@@ -123,14 +123,14 @@
   };
 
   const handleKeydown = (index: number, e: KeyboardEvent) => {
-    if (e.key === "Backspace" && !pinDigits[index] && index > 0) {
-      const prev = document.getElementById(
-        `pin-${index - 1}`,
-      ) as HTMLInputElement;
-      prev?.focus();
-      prev?.select();
-      filledIndexes.delete(index - 1);
-      filledIndexes = new Set(filledIndexes);
+    if (e.key === "Backspace") {
+      const last = pinDigits.reduce((max, d, i) => d !== "" ? i : max, -1)
+      const targetIdx = last >= 0 ? last : Math.max(0, index - 1)
+      pinDigits[targetIdx] = ""
+      const el = document.getElementById(`pin-${targetIdx}`) as HTMLInputElement
+      if (el) { el.value = ""; el.focus(); el.select() }
+      filledIndexes.delete(targetIdx)
+      filledIndexes = new Set(filledIndexes)
     }
   };
 
@@ -238,12 +238,11 @@
           <div class="flex gap-1.5 justify-center mb-4" onpaste={handlePaste}>
             {#each Array(pinLength) as _, i (i)}
               <input
-                type="text"
+                type="password"
                 id="pin-{i}"
                 maxlength="1"
                 inputmode="numeric"
                 autocomplete="off"
-                style="-webkit-text-security:disc"
                 class="w-9 h-12 text-center text-base p-0 flex-none rounded-lg border outline-none transition-all font-['Space_Mono']"
                 class:border-(--text-display)={filledIndexes.has(i)}
                 class:bg-(--text-display)={filledIndexes.has(i)}

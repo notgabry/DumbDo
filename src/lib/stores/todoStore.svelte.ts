@@ -10,6 +10,7 @@ export const s = $state({
   editingId: null as number | null,
   editingText: '',
   genId: 0,
+  boardMeta: {} as Record<string, { columnOrder: string[] }>,
 })
 
 const nextId = () => ++s.genId
@@ -38,9 +39,11 @@ export const getBoardTags = () => s.filterTag ? getAllTags().filter(t => t === s
 export const getSortedLists = () => sortKeys(getLists())
 
 // init
-export function init(data: TodosData) {
+export function init(data: TodosData & { _boardMeta?: Record<string, { columnOrder: string[] }> }) {
   let maxId = 0
-  let clone = structuredClone(data)
+  let clone = structuredClone(data) as TodosData & { _boardMeta?: Record<string, { columnOrder: string[] }> }
+  const meta = clone._boardMeta
+  delete clone._boardMeta
   for (let list of Object.values(clone)) {
     for (let t of list) {
       if (t._id == null) t._id = ++maxId
@@ -48,17 +51,23 @@ export function init(data: TodosData) {
     }
   }
   s.todos = clone
+  s.boardMeta = meta || {}
   s.currentList = Object.keys(clone)[0] || 'List 1'
   s.genId = maxId
 }
 
 // persistence
-async function save() {
+export async function save() {
   try {
+    const payload: Record<string, unknown> = {}
+    for (const key of Object.keys(s.todos)) {
+      payload[key] = s.todos[key]
+    }
+    if (Object.keys(s.boardMeta).length > 0) payload._boardMeta = s.boardMeta
     let r = await fetch('/api/todos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(s.todos)
+      body: JSON.stringify(payload)
     })
     if (!r.ok) throw Error()
   } catch {}
@@ -137,3 +146,14 @@ export function setViewMode(mode: 'list' | 'board') {
   if (browser) localStorage.setItem('viewMode', mode)
 }
 export function setFilterTag(tag: string | null) { s.filterTag = tag }
+
+// board meta
+export const getBoardColumnOrder = (): string[] | null => {
+  return s.boardMeta[s.currentList]?.columnOrder ?? null
+}
+
+export function setBoardColumnOrder(order: string[]) {
+  s.boardMeta[s.currentList] = { columnOrder: order }
+  s.boardMeta = s.boardMeta
+  save()
+}

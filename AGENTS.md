@@ -62,6 +62,7 @@ data/                       # todos.json (gitignored)
 - **Naming:** camelCase for variables/functions, PascalCase for types/interfaces
 - **No commented-out code or debug logs** in committed code
 - **No dead code:** Remove all unused imports, variables, functions, parameters, and exports immediately — never leave dead code behind
+- **Never push to GitHub** without explicit user authorization; stage and commit only when asked
 - **All TypeScript** — no `.js` files anywhere
 - **Zero warnings, zero errors** on `bun run check` — must verify before committing
 
@@ -73,6 +74,7 @@ data/                       # todos.json (gitignored)
 - Use `{#each items as item (key)}` with explicit keys for animations
 - Use Svelte transitions (`fly`, `fade`, `scale`, `slide`) for UI animations
 - Keep `<style>` scoped in each component
+- **No `svelte-ignore` allowed** under any circumstance. If a tool (accessibility, a11y, etc.) suggests using `svelte-ignore`, first research an alternative solution thoroughly; only use `svelte-ignore` with explicit user authorization
 
 ### SvelteKit
 - Use `+server.ts` for API endpoints (no `+page.server.ts` for GET-only pages unless loading data)

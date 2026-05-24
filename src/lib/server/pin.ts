@@ -10,6 +10,9 @@ const loginAttempts = new Map<string, AttemptRecord>()
 const MAX_ATTEMPTS = 5
 const LOCKOUT_TIME = 15 * 60 * 1000
 
+const hashPin = (pin: string): string =>
+  crypto.createHash('sha256').update(pin).digest('hex')
+
 const resetAttempts = (ip: string) => {
   loginAttempts.delete(ip)
 }
@@ -59,7 +62,11 @@ const isValidPin = (providedPin?: string): boolean => {
 }
 
 const validateCookie = (cookie: string | undefined): boolean => {
-  return isValidPin(cookie)
+  if (!cookie || !PIN) return !PIN
+  return crypto.timingSafeEqual(
+    Buffer.from(cookie),
+    Buffer.from(hashPin(PIN))
+  )
 }
 
 export {
@@ -73,5 +80,6 @@ export {
   getAttemptsLeft,
   secureCompare,
   isValidPin,
-  validateCookie
+  validateCookie,
+  hashPin
 }

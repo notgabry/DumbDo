@@ -6,7 +6,8 @@ import {
   resetAttempts,
   secureCompare,
   getAttemptsLeft,
-  getLockoutMinutes
+  getLockoutMinutes,
+  hashPin
 } from '$lib/server/pin'
 import crypto from 'node:crypto'
 import { env } from '$env/dynamic/private'
@@ -44,7 +45,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
   if (!PIN || secureCompare(pin, PIN)) {
     resetAttempts(ip)
-    cookies.set('DUMBDO_PIN', pin, {
+    cookies.set('DUMBDO_PIN', hashPin(pin), {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
       sameSite: 'strict',

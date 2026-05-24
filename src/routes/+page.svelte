@@ -94,11 +94,13 @@
             onkeydown={(e) => { if (e.key === 'Enter') addTodo() }} />
           <button onclick={addTodo}
             class="h-9 px-5 text-sm rounded-full border-none text-nowrap cursor-pointer font-mono uppercase bg-(--text-display) text-(--black) tracking-[0.06em]">ADD</button>
-          <button onclick={renameList}
-            class="w-9 h-9 flex items-center justify-center rounded-full border shrink-0 cursor-pointer border-(--border-visible) text-(--text-secondary) bg-transparent"
-            aria-label="Rename list">
-            <Pencil size={14} strokeWidth={1.5} />
-          </button>
+          {#if !data.singleList}
+            <button onclick={renameList}
+              class="w-9 h-9 flex items-center justify-center rounded-full border shrink-0 cursor-pointer border-(--border-visible) text-(--text-secondary) bg-transparent"
+              aria-label="Rename list">
+              <Pencil size={14} strokeWidth={1.5} />
+            </button>
+          {/if}
           {#if store.getSortedLists().length > 1}
             <button onclick={deleteList}
               class="w-9 h-9 flex items-center justify-center rounded-full border shrink-0 cursor-pointer border-(--accent) text-(--accent) bg-transparent"
