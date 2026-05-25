@@ -150,20 +150,160 @@
     e.preventDefault()
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
   }
+
+  const colFromPoint = (x: number, y: number): string | null => {
+    const cols = document.querySelectorAll<HTMLElement>('[data-col]')
+    for (const c of cols) {
+      const r = c.getBoundingClientRect()
+      if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) {
+        return c.getAttribute('data-col')
+      }
+    }
+    return null
+  }
+
+  // --- Touch DnD for items ---
+  let touchItem: { key: string; colTag: string } | null = null
+
+  let touchItemGrip: HTMLElement | null = null
+
+  const onItemTouchStart = (e: TouchEvent, colTag: string, todo: Todo) => {
+    e.preventDefault()
+    const key = todo._id?.toString() || todo.text
+    touchItem = { key, colTag }
+    dragItemKey = key
+    dragCol = colTag
+    itemDropTarget = null
+    const grip = e.currentTarget as HTMLElement
+    grip.draggable = false
+    touchItemGrip = grip
+    document.addEventListener('touchmove', onItemTouchMove, { passive: false })
+    document.addEventListener('touchend', onItemTouchEnd, { passive: false })
+  }
+
+  const onItemTouchMove = (e: TouchEvent) => {
+    e.preventDefault()
+    if (!touchItem) return
+    const touch = e.touches[0]
+    const colTag = colFromPoint(touch.clientX, touch.clientY)
+    if (!colTag) { itemDropTarget = null; return }
+    const colEl = document.querySelector<HTMLElement>(`[data-col="${colTag}"]`)
+    if (!colEl) { itemDropTarget = null; return }
+    const itemEls = [...colEl.querySelectorAll<HTMLElement>('[data-key]')]
+    let dropIdx = itemEls.length
+    for (let i = 0; i < itemEls.length; i++) {
+      const r = itemEls[i].getBoundingClientRect()
+      const midY = r.top + r.height / 2
+      if (touch.clientY < midY) { dropIdx = i; break }
+    }
+    itemDropTarget = { col: colTag, idx: dropIdx }
+  }
+
+  const onItemTouchEnd = (e: TouchEvent) => {
+    document.removeEventListener('touchmove', onItemTouchMove)
+    document.removeEventListener('touchend', onItemTouchEnd)
+    if (!touchItem) { touchItem = null; dragItemKey = null; itemDropTarget = null; return }
+    const ti = touchItem
+    const touch = e.changedTouches[0]
+    const colTag = colFromPoint(touch.clientX, touch.clientY)
+    let targetCol = ti.colTag
+    let targetIdx = -1
+    if (colTag) targetCol = colTag
+    const colEl = document.querySelector<HTMLElement>(`[data-col="${targetCol}"]`)
+    if (colEl) {
+      const itemEls = [...colEl.querySelectorAll<HTMLElement>('[data-key]')]
+      targetIdx = itemEls.length
+      for (let i = 0; i < itemEls.length; i++) {
+        const key = itemEls[i].getAttribute('data-key')
+        if (key === ti.key) continue
+        const r = itemEls[i].getBoundingClientRect()
+        const midY = r.top + r.height / 2
+        if (touch.clientY < midY) { targetIdx = i; break }
+      }
+    }
+    const list = store.s.todos[store.s.currentList]
+    const todo = list.find(t => (t._id?.toString() || t.text) === ti.key)
+    if (todo) {
+      if (ti.colTag !== targetCol && targetCol) updateTodoTag(todo, targetCol)
+      const colItems = store.getCurrentTodos().filter(t => getColTag(t) === targetCol)
+      const from = list.indexOf(todo)
+      const targetTodo = targetIdx >= 0 && targetIdx < colItems.length ? colItems[targetIdx] : null
+      const to = targetTodo ? list.indexOf(targetTodo) : list.length
+      if (from >= 0 && to >= 0 && from !== to) {
+        list.splice(from, 1)
+        list.splice(from < to ? to - 1 : to, 0, todo)
+      }
+      store.save()
+    }
+    if (touchItemGrip) touchItemGrip.draggable = true
+    touchItemGrip = null
+    touchItem = null
+    dragItemKey = null
+    itemDropTarget = null
+  }
+
+  // --- Touch DnD for columns ---
+  let touchCol: string | null = null
+  let touchColHeader: HTMLElement | null = null
+
+  const onColTouchStart = (e: TouchEvent, col: string) => {
+    e.preventDefault()
+    touchCol = col
+    dragCol = col
+    colDropTarget = null
+    const header = e.currentTarget as HTMLElement
+    header.draggable = false
+    touchColHeader = header
+    document.addEventListener('touchmove', onColTouchMove, { passive: false })
+    document.addEventListener('touchend', onColTouchEnd, { passive: false })
+  }
+
+  const onColTouchMove = (e: TouchEvent) => {
+    e.preventDefault()
+    if (!touchCol) return
+    const touch = e.touches[0]
+    const colTag = colFromPoint(touch.clientX, touch.clientY)
+    if (colTag && colTag !== touchCol) {
+      colDropTarget = colTag
+    } else {
+      colDropTarget = null
+    }
+  }
+
+  const onColTouchEnd = (e: TouchEvent) => {
+    document.removeEventListener('touchmove', onColTouchMove)
+    document.removeEventListener('touchend', onColTouchEnd)
+    if (touchColHeader) touchColHeader.draggable = true
+    touchColHeader = null
+    if (!touchCol) { touchCol = null; dragCol = null; colDropTarget = null; return }
+    const touch = e.changedTouches[0]
+    const targetCol = colFromPoint(touch.clientX, touch.clientY)
+    if (targetCol && targetCol !== touchCol && colOrder.includes(touchCol) && colOrder.includes(targetCol)) {
+      const from = colOrder.indexOf(touchCol)
+      const to = colOrder.indexOf(targetCol)
+      colOrder.splice(from, 1)
+      colOrder.splice(from < to ? to - 1 : to, 0, touchCol)
+      store.setBoardColumnOrder(colOrder)
+    }
+    touchCol = null
+    dragCol = null
+    colDropTarget = null
+  }
 </script>
 
 <div class="grid gap-4 grid-cols-[repeat(auto-fill,minmax(280px,1fr))] items-start" role="none" ondragover={containerDragOver}>
   {#each colOrder as colTag}
     {@const colTodos = store.getCurrentTodos().filter(t => getColTag(t) === colTag)}
-    <div class="rounded-xl p-4 border bg-(--surface) border-(--border) transition-all" role="none"
+    <div class="rounded-xl p-4 border bg-(--surface) border-(--border) transition-all" role="none" data-col={colTag}
       class:ring-2={colDropTarget === colTag} class:ring-(--interactive)={colDropTarget === colTag}
       ondragover={(e) => colDragOver(e, colTag)}
       ondragleave={() => colDragLeave(colTag)}
       ondrop={(e) => colDrop(e, colTag)}>
-      <div class="flex items-center gap-2 mb-3" role="button" tabindex="0" draggable="true"
+      <div class="flex items-center gap-2 mb-3 select-none" role="button" tabindex="0" draggable="true"
         ondragstart={(e) => colDragStart(e, colTag)}
-        ondragend={() => { dragCol = null; colDropTarget = null }}>
-        <div class="shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity">
+        ondragend={() => { dragCol = null; colDropTarget = null }}
+        ontouchstart={(e) => onColTouchStart(e, colTag)}>
+        <div class="shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity" role="none">
           <GripVertical size={12} strokeWidth={1.5} />
         </div>
         <span class="text-[9px] px-2 py-0.5 rounded-full font-bold text-white uppercase font-['Space_Mono'] tracking-[0.08em] {getTagColorClass(colTag)}">{colTag}</span>
@@ -173,7 +313,7 @@
         {#each colTodos as t, i (t._id || t.text)}
           {@const { tag: tTag, starTags: tStars, text: tText } = parseTag(t.text)}
           {@const tKey = t._id?.toString() || t.text}
-          <div class="relative flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-all bg-(--surface-raised) border-(--border)" role="listitem" class:opacity-50={t.completed}
+          <div class="relative flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-all bg-(--surface-raised) border-(--border)" role="listitem" data-key={tKey} class:opacity-50={t.completed}
             ondragend={() => { dragItemKey = null; itemDropTarget = null }}
             ondragover={(e) => itemDragOver(e, colTag, i, t)}
             ondragleave={itemDragLeave}
@@ -182,7 +322,7 @@
             {#if itemDropTarget && itemDropTarget.col === colTag && itemDropTarget.idx === i}
               <div class="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-(--interactive)"></div>
             {/if}
-            <div class="mt-0.5 shrink-0 cursor-grab text-(--text-disabled) opacity-40 hover:opacity-100 transition-opacity" role="none" draggable="true" ondragstart={(e) => itemDragStart(e, colTag, t)}>
+            <div class="mt-0.5 shrink-0 cursor-grab text-(--text-disabled) opacity-40 hover:opacity-100 transition-opacity select-none" role="none" draggable="true" ondragstart={(e) => itemDragStart(e, colTag, t)} ontouchstart={(e) => onItemTouchStart(e, colTag, t)}>
               <GripVertical size={10} strokeWidth={1.5} />
             </div>
             <button onclick={() => store.toggleTodo(t)}

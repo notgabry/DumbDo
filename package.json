@@ -16,7 +16,6 @@
     "@sveltejs/kit": "^2.20.7",
     "@tailwindcss/vite": "^4.1.7",
     "lucide-svelte": "^1.0.1",
-    "mobile-drag-drop": "^3.0.0-rc.0",
     "svelte": "^5.28.2",
     "tailwindcss": "^4.1.7"
   },

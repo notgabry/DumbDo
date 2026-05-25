@@ -44,6 +44,69 @@
     dragKey = null
     dropIdx = null
   }
+
+  // --- Touch DnD ---
+  let touchKey: string | null = null
+  let touchGrip: HTMLElement | null = null
+
+  const onTouchStart = (e: TouchEvent, todo: Todo) => {
+    e.preventDefault()
+    const key = todo._id?.toString() || todo.text
+    touchKey = key
+    dragKey = key
+    dropIdx = null
+    const grip = e.currentTarget as HTMLElement
+    grip.draggable = false
+    touchGrip = grip
+    document.addEventListener('touchmove', onTouchMove, { passive: false })
+    document.addEventListener('touchend', onTouchEnd, { passive: false })
+  }
+
+  const onTouchMove = (e: TouchEvent) => {
+    e.preventDefault()
+    if (!touchKey) return
+    const touch = e.touches[0]
+    const itemEls = [...document.querySelectorAll<HTMLElement>('[data-key]')]
+    let idx = itemEls.length
+    for (let i = 0; i < itemEls.length; i++) {
+      const r = itemEls[i].getBoundingClientRect()
+      const midY = r.top + r.height / 2
+      if (touch.clientY < midY) { idx = i; break }
+    }
+    dropIdx = idx
+  }
+
+  const onTouchEnd = (e: TouchEvent) => {
+    document.removeEventListener('touchmove', onTouchMove)
+    document.removeEventListener('touchend', onTouchEnd)
+    if (touchGrip) touchGrip.draggable = true
+    touchGrip = null
+    if (!touchKey) { touchKey = null; dragKey = null; dropIdx = null; return }
+    const touch = e.changedTouches[0]
+    const itemEls = [...document.querySelectorAll<HTMLElement>('[data-key]')]
+    let dropAtIdx = itemEls.length
+    for (let i = 0; i < itemEls.length; i++) {
+      const key = itemEls[i].getAttribute('data-key')
+      if (key === touchKey) continue
+      const r = itemEls[i].getBoundingClientRect()
+      const midY = r.top + r.height / 2
+      if (touch.clientY < midY) { dropAtIdx = i; break }
+    }
+    if (dropAtIdx >= 0) {
+      const list = store.s.todos[store.s.currentList]
+      const active = store.getActiveTodos()
+      const from = list.indexOf(active.find(t => (t._id?.toString() || t.text) === touchKey)!)
+      const to = list.indexOf(active[dropAtIdx])
+      if (from >= 0 && to >= 0 && from !== to) {
+        list.splice(from, 1)
+        list.splice(from < to ? to - 1 : to, 0, active.find(t => (t._id?.toString() || t.text) === touchKey)!)
+      }
+      store.save()
+    }
+    touchKey = null
+    dragKey = null
+    dropIdx = null
+  }
 </script>
 
 {#if store.getActiveTodos().length === 0 && store.getDoneTodos().length === 0}
@@ -54,7 +117,7 @@
       {#each store.getActiveTodos() as t, i (t._id || t.text)}
         {@const { tag, starTags, text } = parseTag(t.text)}
         {@const tKey = t._id?.toString() || t.text}
-        <div class="relative flex items-start gap-3 px-1 py-2 border-b transition-all border-(--border)" role="listitem"
+        <div class="relative flex items-start gap-3 px-1 py-2 border-b transition-all border-(--border)" role="listitem" data-key={tKey}
           ondragend={() => { dragKey = null; dropIdx = null }}
           ondragover={(e) => dragOver(e, i, t)}
           ondragleave={dragLeave}
@@ -63,7 +126,7 @@
           {#if dropIdx === i}
             <div class="absolute -top-px left-0 right-0 h-0.5 rounded-full bg-(--interactive)"></div>
           {/if}
-          <div class="mt-1 shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity" role="none" draggable="true" ondragstart={(e) => dragStart(e, t)}>
+          <div class="mt-1 shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity select-none" role="none" draggable="true" ondragstart={(e) => dragStart(e, t)} ontouchstart={(e) => onTouchStart(e, t)}>
             <GripVertical size={12} strokeWidth={1.5} />
           </div>
           <button onclick={() => store.toggleTodo(t)}
