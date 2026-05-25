@@ -55,8 +55,6 @@
         {@const { tag, starTags, text } = parseTag(t.text)}
         {@const tKey = t._id?.toString() || t.text}
         <div class="relative flex items-start gap-3 px-1 py-2 border-b transition-all border-(--border)" role="listitem"
-          draggable="true"
-          ondragstart={(e) => dragStart(e, t)}
           ondragend={() => { dragKey = null; dropIdx = null }}
           ondragover={(e) => dragOver(e, i, t)}
           ondragleave={dragLeave}
@@ -65,7 +63,7 @@
           {#if dropIdx === i}
             <div class="absolute -top-px left-0 right-0 h-0.5 rounded-full bg-(--interactive)"></div>
           {/if}
-          <div class="mt-1 shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity">
+          <div class="mt-1 shrink-0 cursor-grab text-(--text-disabled) opacity-30 hover:opacity-100 transition-opacity" role="none" draggable="true" ondragstart={(e) => dragStart(e, t)}>
             <GripVertical size={12} strokeWidth={1.5} />
           </div>
           <button onclick={() => store.toggleTodo(t)}

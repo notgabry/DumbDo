@@ -11,12 +11,27 @@
   let itemDropTarget: { col: string; idx: number } | null = $state(null)
 
   let prevTags = ''
-  let synced = false
+  let colOrderBackup: string[] = []
   $effect(() => {
     const tags = store.getBoardTags()
     const key = tags.join(',')
     if (key === prevTags) return
     prevTags = key
+    // when entering filter mode, save order and restrict columns
+    if (store.s.filterTag) {
+      if (colOrder.length > 0 && colOrderBackup.length === 0) {
+        colOrderBackup = [...colOrder]
+      }
+      colOrder = tags
+      return
+    }
+    // when leaving filter mode, restore backup + new tags
+    if (colOrderBackup.length > 0) {
+      const missing = tags.filter(t => !colOrderBackup.includes(t))
+      colOrder = [...colOrderBackup.filter(t => tags.includes(t)), ...missing]
+      colOrderBackup = []
+      return
+    }
     if (colOrder.length === 0) {
       const persisted = store.getBoardColumnOrder()
       if (persisted && persisted.length > 0) {
@@ -24,25 +39,19 @@
         for (const t of tags) {
           if (!colOrder.includes(t)) colOrder.push(t)
         }
-        synced = false
         return
       }
     }
     const existing = new Set(colOrder)
     const added = tags.filter(t => !existing.has(t))
     const removed = colOrder.filter(t => !tags.includes(t))
-    if (added.length === 0 && removed.length === 0) {
-      synced = true
-      return
-    }
+    if (added.length === 0 && removed.length === 0) return
     if (colOrder.length === 0) {
       colOrder = [...tags]
     } else {
       for (const t of added) colOrder.push(t)
       colOrder = colOrder.filter(t => tags.includes(t))
     }
-    synced = true
-    store.setBoardColumnOrder(colOrder)
   })
 
   const getColTag = (t: Todo): string | null => parseTag(t.text).tag
@@ -94,13 +103,19 @@
   const itemDragOver = (e: DragEvent, colTag: string, idx: number, todo: Todo) => {
     e.preventDefault()
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-    if (!dragItemKey || dragCol !== colTag) return
+    if (!dragItemKey) return
     const key = todo._id?.toString() || todo.text
     if (key !== dragItemKey) itemDropTarget = { col: colTag, idx }
   }
 
   const itemDragLeave = () => {
     itemDropTarget = null
+  }
+
+  const updateTodoTag = (todo: Todo, newTag: string) => {
+    const { starTags, text } = parseTag(todo.text)
+    const stars = starTags.length > 0 ? ' *' + starTags.join(' *') : ''
+    todo.text = `${newTag}: ${text}${stars}`
   }
 
   const itemDrop = (e: DragEvent, colTag: string, dropIdx: number) => {
@@ -110,19 +125,22 @@
       const data = e.dataTransfer ? JSON.parse(e.dataTransfer.getData('text/plain')) : null
       if (data?.key) key = data.key
     } catch {}
-    if (!key || dragCol !== colTag) { dragItemKey = null; itemDropTarget = null; return }
-    const items = store.getCurrentTodos().filter(t => getColTag(t) === colTag)
-    const todo = items.find(t => (t._id?.toString() || t.text) === key)
-    if (!todo) { dragItemKey = null; itemDropTarget = null; return }
+    if (!key) { dragItemKey = null; itemDropTarget = null; return }
     const list = store.s.todos[store.s.currentList]
+    const todo = list.find(t => (t._id?.toString() || t.text) === key)
+    if (!todo) { dragItemKey = null; itemDropTarget = null; return }
+    // cross-column — change tag
+    if (dragCol !== colTag) updateTodoTag(todo, colTag)
+    const items = store.getCurrentTodos().filter(t => getColTag(t) === colTag)
     const from = list.indexOf(todo)
     const targetTodo = dropIdx >= 0 ? items[dropIdx] : null
     const to = targetTodo ? list.indexOf(targetTodo) : list.length
-    if (from === -1 || to === -1) { dragItemKey = null; itemDropTarget = null; return }
-    if (from === to) { dragItemKey = null; itemDropTarget = null; return }
-    list.splice(from, 1)
-    const adjustedTo = from < to ? to - 1 : to
-    list.splice(adjustedTo, 0, todo)
+    if (from === -1 || to === -1) { dragItemKey = null; itemDropTarget = null; store.save(); return }
+    if (from !== to) {
+      list.splice(from, 1)
+      const adjustedTo = from < to ? to - 1 : to
+      list.splice(adjustedTo, 0, todo)
+    }
     store.save()
     dragItemKey = null
     itemDropTarget = null
@@ -156,8 +174,6 @@
           {@const { tag: tTag, starTags: tStars, text: tText } = parseTag(t.text)}
           {@const tKey = t._id?.toString() || t.text}
           <div class="relative flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-all bg-(--surface-raised) border-(--border)" role="listitem" class:opacity-50={t.completed}
-            draggable="true"
-            ondragstart={(e) => itemDragStart(e, colTag, t)}
             ondragend={() => { dragItemKey = null; itemDropTarget = null }}
             ondragover={(e) => itemDragOver(e, colTag, i, t)}
             ondragleave={itemDragLeave}
@@ -166,7 +182,7 @@
             {#if itemDropTarget && itemDropTarget.col === colTag && itemDropTarget.idx === i}
               <div class="absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-(--interactive)"></div>
             {/if}
-            <div class="mt-0.5 shrink-0 cursor-grab text-(--text-disabled) opacity-40 hover:opacity-100 transition-opacity">
+            <div class="mt-0.5 shrink-0 cursor-grab text-(--text-disabled) opacity-40 hover:opacity-100 transition-opacity" role="none" draggable="true" ondragstart={(e) => itemDragStart(e, colTag, t)}>
               <GripVertical size={10} strokeWidth={1.5} />
             </div>
             <button onclick={() => store.toggleTodo(t)}
