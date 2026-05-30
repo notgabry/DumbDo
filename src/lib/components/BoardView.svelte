@@ -11,10 +11,18 @@
   let itemDropTarget: { col: string; idx: number } | null = $state(null)
 
   let prevTags = ''
+  let prevList = ''
   let colOrderBackup: string[] = []
   $effect(() => {
     const tags = store.getBoardTags()
     const key = tags.join(',')
+    const list = store.s.currentList
+    if (list !== prevList) {
+      prevList = list
+      colOrder = []
+      colOrderBackup = []
+      prevTags = ''
+    }
     if (key === prevTags) return
     prevTags = key
     // when entering filter mode, save order and restrict columns

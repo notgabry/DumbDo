@@ -59,7 +59,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
   recordAttempt(ip)
   return new Response(JSON.stringify({
     valid: false,
-    error: `Invalid PIN. ${getAttemptsLeft(ip)} attempts remaining before lockout.`,
+    error: `Invalid PIN`,
     attemptsLeft: getAttemptsLeft(ip)
   }), {
     status: 401,

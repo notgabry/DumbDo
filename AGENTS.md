@@ -56,7 +56,7 @@ data/                       # todos.json (gitignored)
 ## Coding Conventions
 
 ### General
-- **Indentation:** 2 spaces (no tabs)
+- **Indentation:** 4 spaces (no tabs)
 - **Semicolons:** Omit unless strictly necessary
 - **Functions:** Always use arrow functions (never `function` keyword)
 - **Naming:** camelCase for variables/functions, PascalCase for types/interfaces
@@ -90,6 +90,9 @@ data/                       # todos.json (gitignored)
 - Use `style="property:value"` only when values are truly runtime-dynamic (e.g. `getTagColor(tag)`)
 - Custom CSS pseudo-classes (e.g. `pin-input:focus`) handled via JavaScript event handlers (`onfocus`/`onblur`)
 - Font families set via inline `style` since they use CSS variables
+
+### Icons
+- **All icons from `lucide-svelte`** — no inline SVGs anywhere in the codebase
 
 ## Key Behaviors to Preserve
 
